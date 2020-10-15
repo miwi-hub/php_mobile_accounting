@@ -1,15 +1,23 @@
 <?php
 
-function getDbConnection() {
+/* use only PDO
+ function getDbConnection() {
     $db = mysqli_connect("hostname", "username", "password");
     mysqli_select_db($db, "databasename");
     return $db;
 }
+*/
 
+try {
 function getPdoConnection() {
-    $pdo = new PDO('mysql:host=hostname;dbname=databasename', 'username', 'password');
+    $pdo = new PDO('p:host=hostname;dbname=databasename', 'username', 'password');
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     return $pdo;
+} 
+
+} catch (PDOException $e) {
+   print "Error!: " . $e->getMessage() . "<br/>";
+   die();
 }
 
 ?>
