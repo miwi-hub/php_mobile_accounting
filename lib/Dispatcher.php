@@ -131,12 +131,12 @@ function setRemoteUser($user) {
         $rs = $stmt->execute(array($user));
 	while ( $rs = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $this->mandant = $rs->mandant_id;
-            $this->user_id = $rs->user_id;
+            $this->user_id = $rs->user_id; }
         } catch (PDOException $e) {
             print $e->getMessage();
             throw new Exception("Kein Mandant für den Benutzer $user konfiguriert");
         }
-        $stmt->closeCursor();
+        $stmt = null;
     } else {
         throw new Exception("Der Benutzername enthält ungültige Zeichen");
     }
