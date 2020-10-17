@@ -48,17 +48,15 @@ function invoke($action, $request, $dispatcher) {
 
 # legt das als JSON-Objekt übergebene Konto an
 function createBuchung($request) {
-    $db = getDbConnection();
     $inputJSON = file_get_contents('php://input');
     $input = json_decode( $inputJSON, TRUE );
-    $result = $this->createBuchungInternal($input, $db);
-    mysqli_close($db);
+    $result = $this->createBuchungInternal($input);
     return $result;
 }
 
 # Innerhalb dieses Controllers wiederverwendbare Funktion zum
 # Anlegen von Buchungen
-private function createBuchungInternal($input, $db) {
+private function createBuchungInternal($input) {
     if($this->isValidBuchung($input)) {
         if($input['is_offener_posten']) {
             $temp_op = 1;
@@ -71,9 +69,10 @@ private function createBuchungInternal($input, $db) {
             ." values ($this->mandant_id, '".$input['buchungstext']
             ."', '".$input['sollkonto']."', '".$input['habenkonto']."', ".$input['betrag'].", '"
             .$input['datum']."', ".$this->dispatcher->getUserId().", ".$temp_op.")";
-        mysqli_query($db, $sql);
-
+        $db = getPdoConnection(),
+        $db->query($sql);
         $empty = array();
+        $db->closeCursor();
         return wrap_response($empty, "json");
     } else {
         throw new ErrorException("Das Buchungsobjekt enthält nicht gültige Elemente");
@@ -83,37 +82,34 @@ private function createBuchungInternal($input, $db) {
 
 # liest die aktuellsten 25 Buchungen aus
 function getTop25() {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $top = array();
-    $rs = mysqli_query($db, "select * from fi_buchungen "
+    $sql = "select * from fi_buchungen "
         ."where mandant_id = $this->mandant_id "
-        ."order by buchungsnummer desc limit 25");
-
-    while($obj = mysqli_fetch_object($rs)) {
-        $top[] = $obj;
+        ."order by buchungsnummer desc limit 25";
+    foreach ($db->query($sql) as $row)  {
+        $top[] = $row;
     }
-
-    mysqli_free_result($rs);
-    mysqli_close($db);
+    
+    $db->closeCursor();
     return wrap_response($top);
 }
 
 # liest die offenen Posten aus
 function getOpList() {
-    $db = getDbConnection();
-    $top = array();
-    $rs = mysqli_query($db, "select * from fi_buchungen "
+    $db = getPdoConnection();
+    $op = array();
+    $sql = "select * from fi_buchungen "
         ."where mandant_id = $this->mandant_id "
         ."and is_offener_posten = 1 "
-        ."order by buchungsnummer");
+        ."order by buchungsnummer";
 
-    while($obj = mysqli_fetch_object($rs)) {
-        $top[] = $obj;
+    foreach ($db->query($sql) as $row) {
+        $op[] = $row;
     }
 
-    mysqli_free_result($rs);
-    mysqli_close($db);
-    return wrap_response($top);
+    $db->closeCursor();
+    return wrap_response($op);
 }
 
 # liest die offenen Posten aus
