@@ -114,7 +114,7 @@ function getOpList() {
 
 # liest die offenen Posten aus
 function closeOpAndGetList($request) {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $inputJSON = file_get_contents('php://input');
     $input = json_decode( $inputJSON, TRUE );
     if($this->isValidOPCloseRequest($input)) {
@@ -122,14 +122,14 @@ function closeOpAndGetList($request) {
         try {
             // Buchung anlegen
             $buchung = $input['buchung'];
-            $this->createBuchungInternal($buchung, $db);
+            $this->createBuchungInternal($buchung);
             // Offener-Posten-Flag auf false setzen
             $buchungsnummer = $input['offenerposten'];
             if (is_numeric($buchungsnummer)) {
                 $sql = "update fi_buchungen set is_offener_posten = 0"
                     . " where mandant_id = $this->mandant_id "
                     . " and buchungsnummer = $buchungsnummer";
-                mysqli_query($db, $sql);
+                $db->query($sql);
             }
             $db->commit();
         } catch (Exception $e) {
@@ -137,27 +137,16 @@ function closeOpAndGetList($request) {
             throw $e;
         }
         // Aktualisierte Offene-Posten-Liste an den Client liefern
-        $top = array();
-        $rs = mysqli_query($db, "select * from fi_buchungen "
-            . "where mandant_id = $this->mandant_id "
-            . "and is_offener_posten = 1 "
-            . "order by buchungsnummer");
-
-        while ($obj = mysqli_fetch_object($rs)) {
-            $top[] = $obj;
-        }
-
-        mysqli_free_result($rs);
-        mysqli_close($db);
-        return wrap_response($top);
+        $op = getOPList();
+        return wrap_response($op);
     } else {
-        mysqli_close($db);
+        $db->closeCurser();
         throw new ErrorException("Der OP-Close-Request ist ungültig!");
     }
 }
 
 function getListByKonto($request) {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $kontonummer = $request['konto'];
     $jahr = $request['jahr'];
     # Nur verarbeiten, wenn konto eine Ziffernfolge ist, um SQL-Injections zu vermeiden
@@ -175,14 +164,12 @@ function getListByKonto($request) {
         $sql .= "from fi_buchungen ";
         $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' and year(datum) = $jahr ";
         $sql .= "order by buchungsnummer desc";
-
-        $rs = mysqli_query($db, $sql);
         
-        while($obj = mysqli_fetch_object($rs)) {
-            $result_list[] = $obj;
+        foreach ($db->query($sql) as $row) {
+            $result_list[] = $row;
         }
 
-        mysqli_free_result($rs);
+        $db->closeCursor();
         $result['list'] = $result_list;
 
         // Saldo laden: 
@@ -191,15 +178,13 @@ function getListByKonto($request) {
         $sql .= "union SELECT sum(betrag)*-1 as betrag from fi_buchungen ";
         $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' ) as a ";
 
-        $rs = mysqli_query($db, $sql);
-        if($obj = mysqli_fetch_object($rs)) {
+        if($obj = $db->query($sql)) {
             $result['saldo'] = $obj->saldo;
         } else {
             $result['saldo'] = "unbekannt";
         }
 
-        mysqli_free_result($rs);
-        mysqli_close($db);
+        $db->closeCursor();
         return wrap_response($result);
     # Wenn konto keine Ziffernfolge ist, leeres Ergebnis zurück liefern
     } else {
