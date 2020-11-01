@@ -56,7 +56,7 @@ function invoke($action, $request, $dispatcher) {
 # sie als Array zurück
 function getBilanz($request) {
     $result = array();
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $year = $request['year'];
 
     if($this->isValidYear($year)) {
@@ -67,12 +67,12 @@ function getBilanz($request) {
             get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql = $query->getSql();
 
-        $rs = mysqli_query($db, $sql);
 
         $zeilen = array();
-        while ($erg = mysqli_fetch_object($rs)) {
-            $zeilen[] = $erg;
+        foreach ($db->query($sql) as $row) {
+            $zeilen[] = $row;
         }
+        $row = null;
         $result['zeilen'] = $zeilen;
 
         $query = new QueryHandler("bilanz_summen.sql");
@@ -81,14 +81,14 @@ function getBilanz($request) {
         $query->setNumericParameter("geschj_start_monat",
             get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql = $query->getSql();
-        $rs = mysqli_query($db, $sql);
 
         $ergebnisse = array();
-        while ($erg = mysqli_fetch_object($rs)) {
-            $ergebnisse[] = $erg;
+        foreach ($db->query($sql) as $row) {
+            $ergebnisse[] = $row;
         }
+        $row = null;
         $result['ergebnisse'] = $ergebnisse;
-        mysqli_close($db);
+        $db = null;
         return wrap_response($result);
     } else {
         return wrap_response("Fehler aufgetreten, das angegebene Jahr hat ein ungültiges Format");
@@ -98,7 +98,7 @@ function getBilanz($request) {
 # Berechnet eine aktuelle GuV-Rechnung und liefert
 # sie als Array zurück
 function getGuV($request) {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $year = $request['year'];
     if($this->isValidYear($year)) {
 
@@ -109,12 +109,12 @@ function getGuV($request) {
             get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql = $query->getSql();
    
-        $rs = mysqli_query($db, $sql);
         $zeilen = array();
         $result = array();
-        while($erg = mysqli_fetch_object($rs)) {
-            $zeilen[] = $erg;
+        foreach ($db->query($sql) as $row) {
+            $zeilen[] = $row;
         }
+        $row = null;
         $result['zeilen'] = $zeilen;
 
         $query = new QueryHandler("guv_jahr_summen.sql");
@@ -124,13 +124,13 @@ function getGuV($request) {
             get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql2  = $query->getSql();
 
-        $rs = mysqli_query($db, $sql2);
         $ergebnisse = array();
-        while($erg = mysqli_fetch_object($rs)) {
-            $ergebnisse[] = $erg;
+        foreach ( $db->query($sql2) as $row) {
+            $ergebnisse[] = $row;
         }
+        $row = null;
         $result['ergebnisse'] = $ergebnisse;
-        mysqli_close($db);
+        $db = null;
         return wrap_response($result);
     } else {
         return wrap_response("Der übergebene Parameter year erfüllt nicht die Formatvorgaben für gültige Jahre");
@@ -142,18 +142,18 @@ function getGuV($request) {
 function getGuVMonth($request) {
     $month_id = $this->getMonthFromRequest($request);
 
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $query = new QueryHandler("guv_monat.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $query->setParameterUnchecked("monat_id", $month_id);
     $sql = $query->getSql();
 
-    $rs = mysqli_query($db, $sql);
     $zeilen = array();
     $result = array();
-    while($erg = mysqli_fetch_object($rs)) {
-        $zeilen[] = $erg;
+    foreach ($db->query($sql) as $row) {
+        $zeilen[] = $row;
     }
+    $row = null;
     $result['zeilen'] = $zeilen;
 
     $query = new QueryHandler("guv_monat_summen.sql");
@@ -161,14 +161,14 @@ function getGuVMonth($request) {
     $query->setParameterUnchecked("monat_id", $month_id);
     $sql = $query->getSql();
 
-    $rs = mysqli_query($db, $sql);
     $ergebnisse = array();
-    while($erg = mysqli_fetch_object($rs)) {
-        $ergebnisse[] = $erg;
+    foreach ($db->query($sql) as $row) {
+        $ergebnisse[] = $row;
     }
+    $row = null;
     $result['ergebnisse'] = $ergebnisse;
+    $db = null;
 
-    mysqli_close($db);
     return wrap_response($result);
 }
 
@@ -176,34 +176,30 @@ function getGuVMonth($request) {
 # Laden der GuV-Prognose
 # (GuV aktuelles-Monat + Vormonat)
 function getGuVPrognose() {
-    $db = getDbConnection();
+    $db = getPdoConnection();
 
     $query = new QueryHandler("guv_prognose.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $sql = $query->getSql();
 
-    $rs = mysqli_query($db, $sql);
-
     $result = array();
     $result['detail'] = array();
-    while($erg = mysqli_fetch_object($rs)) {
-        $result['detail'][] = $erg;
+    foreach ($db->query($sql) as $row) {
+        $result['detail'][] = $row;
     }
 
-    mysqli_free_result($rs);
+    $row = null;
 
     $query = new QueryHandler("guv_prognose_summen.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $sql = $query->getSql();
-
-    $rs = mysqli_query($db, $sql);
     
     $result['summen'] = array();
-    while($erg = mysqli_fetch_object($rs)) {
-        $result['summen'][] = $erg;
+    foreach ( $db->query($sql) as $row) {
+        $result['summen'][] = $row;
     }
-
-    mysqli_close($db);
+    $row = null;
+    $db = null;;
     return wrap_response($result);
 }
 
@@ -223,26 +219,25 @@ function getMonthFromRequest($request) {
 
 # Liefert eine Liste der gültigen Monate aus den Buchungen des Mandanten
 function getMonths() {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $months = array();
 
     $sql =  "select distinct (year(datum)*100)+month(datum) as yearmonth ";
     $sql .= " from fi_buchungen where mandant_id = ".$this->mandant_id;
     $sql .= " order by yearmonth desc";
 
-    $rs = mysqli_query($db, $sql);
-    while($obj = mysqli_fetch_object($rs)) {
-        $months[] = $obj->yearmonth;
+    foreach ( $db->query($sql) as $row) {
+        $months[] = $row->yearmonth;
     }
 
-    mysqli_free_result($rs);
-    mysqli_close($db);
+    $row = null;;
+    $db  = null;;
     return wrap_response($months);
 }
 
 # Liefert eine Liste der gültigen Jahre aus den Buchungen des Mandanten
 function getYears() {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $years = array();
 
     $sql = "select distinct year(date_add(datum, INTERVAL 13-";
@@ -250,13 +245,12 @@ function getYears() {
     $sql .= "from fi_buchungen where mandant_id = ".$this->mandant_id;
     $sql .= " order by year desc";
 
-    $rs = mysqli_query($db, $sql);
-    while($obj = mysqli_fetch_object($rs)) {
-        $years[] = $obj->year;
+    foreach ( $db->query($sql) as $row) {
+        $years[] = $row->year;
     }
 
-    mysqli_free_result($rs);
-    mysqli_close($db);
+    $row = null;;
+    $db = null;
     return wrap_response($years);
 }
 
@@ -270,7 +264,7 @@ function getVerlauf($request) {
     $kontenart_id = $request['id'];
     if(is_numeric($kontenart_id)) {
 
-        $db = getDbConnection();
+        $db = getPdoConnection();
 
         if($kontenart_id == 4 || $kontenart_id == 1)
             $sql =  "select (year(datum)*100)+month(datum) as groupingx, sum(betrag)*-1 as saldo ";
@@ -285,13 +279,12 @@ function getVerlauf($request) {
         $sql .= "group by kontenart_id, groupingx ";
         $sql .= "order by groupingx";
 
-        $rs = mysqli_query($db, $sql);
-        while($erg = mysqli_fetch_object($rs)) {
-            $result[] = $erg;
+        foreach ( $db->query($sql) as $row) {
+            $result[] = $row;
         }
 
-        mysqli_free_result($rs);
-        mysqli_close($db);
+        $row = null;
+        $db  = null;
     } 
     return wrap_response($result);
 }
@@ -299,7 +292,7 @@ function getVerlauf($request) {
 # Verlauf des Gewinns in Monatsraster
 function getVerlaufGewinn() {
     $result = array();
-    $db = getDbConnection();
+    $db = getPdoConnection();
 
     $sql =  "select (year(datum)*100)+month(datum) as groupingx, sum(betrag*-1) as saldo ";
     $sql .= "from fi_ergebnisrechnungen_base ";
@@ -311,13 +304,12 @@ function getVerlaufGewinn() {
     $sql .= "group by groupingx ";
     $sql .= "order by groupingx";
 
-    $rs = mysqli_query($db, $sql);
-    while($erg = mysqli_fetch_object($rs)) {
-        $result[] = $erg;
+    foreach ( $db->query($sql) as $row) {
+        $result[] = $row;
     }
 
-    mysqli_free_result($rs);
-    mysqli_close($db);
+    $row = null;
+    $db  = null;
     
     return wrap_response($result);
 }
