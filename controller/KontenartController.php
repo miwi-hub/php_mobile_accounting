@@ -39,10 +39,10 @@ function invoke($action, $request, $dispatcher) {
 # sie als Objekt zurück
 function getKontenart($id) {
     if(is_numeric($id)) {
-        $db = getDbConnection();
-        $rs = mysqli_query($db, "select * from fi_kontenart where kontenart_id = $id");
-        $erg = mysqli_fetch_object($rs);
-        mysqli_close($db);
+        $db = getPdoConnection();
+        $sql = "select * from fi_kontenart where kontenart_id = $id";
+        $erg = $db->query($sql);
+        $db = null;
         return wrap_response($erg);
     } else {
         throw new ErrorException("Eine nicht numerische Kontenart-ID ist ungültig");
@@ -51,13 +51,13 @@ function getKontenart($id) {
 
 # Erstellt eine Liste aller Kontenarten
 function getKontenarten() {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $result = array();
-    $rs = mysqli_query($db, "select * from fi_kontenart");
-    while($obj = mysqli_fetch_object($rs)) {
-        $result[] = $obj;
+    $sql = "select * from fi_kontenart";
+    while($db->query($sql) as $row) {
+        $result[] = $row;
     }
-    mysqli_close($db);
+    $db = null;
     return wrap_response($result);
 }
 
