@@ -46,10 +46,10 @@ function invoke($action, $request, $dispatcher) {
 # sie als Objekt zurück
 function getKonto($id) {
     if(is_numeric($id)) {
-        $db = getDbConnection();
-        $rs = mysqli_query($db, "select * from fi_konto where kontonummer = $id and mandant_id = $this->mandant_id");
-        $erg = mysqli_fetch_object($rs);
-        mysqli_close($db); 
+        $db = getPdoConnection();
+        $sql = "select * from fi_konto where kontonummer = $id and mandant_id = $this->mandant_id";
+        $erg = $db->query($sql);
+        $db = null; 
         return wrap_response($erg);
     } else throw Exception("Kontonummer nicht numerisch");
 }
@@ -57,36 +57,36 @@ function getKonto($id) {
 # Ermittelt den aktuellen Saldo des Kontos
 function getSaldo($id) {
     if(is_numeric($id)) {
-        $db = getDbConnection();
-        $rs = mysqli_query($db, "select saldo from fi_ergebnisrechnungen where mandant_id = $this->mandant_id and konto = '$id'");
-        $erg = mysqli_fetch_object($rs);
-        mysqli_close($db);
+        $db = getPdoConnection();
+        $sql = "select saldo from fi_ergebnisrechnungen where mandant_id = $this->mandant_id and konto = '$id'";
+        $erg = $db->query($sql);
+        $db = null;
         return wrap_response($erg->saldo);
     } else throw Exception("Kontonummer nicht numerisch");
 }
 
 # Erstellt eine Liste aller Kontenarten
 function getKonten() {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $result = array();
-    $rs = mysqli_query($db, "select * from fi_konto where mandant_id = $this->mandant_id order by kontenart_id, kontonummer");
-    while($obj = mysqli_fetch_object($rs)) {
-        $result[] = $obj;
+    $sql = "select * from fi_konto where mandant_id = $this->mandant_id order by kontenart_id, kontonummer";
+    while($db->query($sql) as $row) {
+        $result[] = $row;
     }
-    mysqli_close($db);
+    $db = null;
     return wrap_response($result);
 }
 
 # Speichert das als JSON-Objekt übergebene Konto
 function saveKonto($request) {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $inputJSON = file_get_contents('php://input');
     $input = json_decode( $inputJSON, TRUE );
     if($this->isValidKonto($input)) { 
         $sql = "update fi_konto set bezeichnung = '".$input['bezeichnung']."', kontenart_id = ".$input['kontenart_id']
               ." where kontonummer = ".$input['kontonummer']." and mandant_id = ".$this->mandant_id;
-        mysqli_query($db, $sql);
-        mysqli_close($db);
+        $db->query($sql);
+        $db = null;
         $void = array();
         return wrap_response($void);
     } else {
@@ -96,15 +96,15 @@ function saveKonto($request) {
 
 # legt das als JSON-Objekt übergebene Konto an
 function createKonto($request) {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $inputJSON = file_get_contents('php://input');
     $input = json_decode( $inputJSON, TRUE );
     if($this->isValidKonto($input)) {
         $sql = "insert into fi_konto (kontonummer, bezeichnung, kontenart_id, mandant_id) values ('"
               .$input['kontonummer']."', '".$input['bezeichnung']
               ."', ".$input['kontenart_id'].", ".$this->mandant_id.")";
-        mysqli_query($db, $sql);
-        mysqli_close($db);
+        $db->query($sql);
+        $db = null;
         $void = array();
         return wrap_response($void);
     } else {
