@@ -42,7 +42,7 @@ function invoke($action, $request, $dispatcher) {
 function getMonatsSalden($kontonummer) {
     if(is_numeric($kontonummer) || $this->is_numeric_list($kontonummer)) {
         $kto_prepared = $this->prepareKontoNummern($kontonummer);
-        $db = getDbConnection();
+        $db = getPdoConnection();
         $rechnungsart = $this->getRechnungsart($kto_prepared);
         if($rechnungsart != 0) {
            if($rechnungsart == 2) {
@@ -59,7 +59,6 @@ function getMonatsSalden($kontonummer) {
                       ."and y.groupingx > ((year(now())*100)+month(now()))-100 "
                       ."group by groupingx ";
 
-                $rs = mysqli_query($db, $sql);
             } else if($rechnungsart == 1) {
                 // Laufende Summen, fuer Bestandskonten
                 $sql = "select x1.groupingx, sum(x2.betrag) as saldo "
@@ -71,14 +70,13 @@ function getMonatsSalden($kontonummer) {
                       ."where konto in ($kto_prepared) and x1.groupingx > ((year(now())*100)+month(now()))-100 "
                       ."group by groupingx";
 
-                $rs = mysqli_query($db, $sql);
             }
             $result = array();
-            while($obj = mysqli_fetch_object($rs)) {
-                $result[] = $obj;
+            while($db->query($sql) as $row) {
+                $result[] = $row;
             }
-            mysqli_free_result($rs);
-            mysqli_close($db);
+            
+            $db = null;
             return wrap_response($result);
         } else {
             mysqli_close($db);
@@ -95,7 +93,7 @@ function getMonatsSalden($kontonummer) {
 function getCashFlow($kontonummer, $side) {
     $values = array();
     if($this->isAktivKonto($kontonummer)) {
-        $db = getDbConnection();
+        $db = getPdoConnection();
         
         if($side == 'S') {
             $sql  = "select (year(datum)*100)+month(datum) as groupingx, sum(b.betrag) as saldo ";
@@ -120,16 +118,14 @@ function getCashFlow($kontonummer, $side) {
             $sql .= " and k.kontenart_id <> 5 ";
             $sql .= "group by (year(b.datum)*100)+month(b.datum);";
         } else {
-            mysqli_close($db);
+            $db = null;
             throw new Exception("Gültige Werte für side sind S und H");
         }
 
-        $rs = mysqli_query($db, $sql);
-        while($obj = mysqli_fetch_object($rs)) {
-            $values[] = $obj;
+        while($db->query($sql) as $row) {
+            $values[] = $row;
         }
-        mysqli_free_result($rs);
-        mysqli_close($db);
+        $db = null;
     } else {
         throw new Exception("getCashFlow ist nur für Aktiv-Konten verfügbar");
     }
@@ -138,7 +134,7 @@ function getCashFlow($kontonummer, $side) {
 
 # Monats-internen Verlauf ermitteln
 function getIntraMonth($request) {
-    $db = getDbConnection();
+    $db = getPdoConnection();
 
     if(isset($request['month_id'])) { 
       if($this->is_number($request['month_id'])) {
@@ -151,13 +147,11 @@ function getIntraMonth($request) {
         $sql = $query->getSql();
 
         $result = array();
-        $rs = mysqli_query($db, $sql);
-        while($obj = mysqli_fetch_object($rs)) {
-            $result[] = $obj;
+        while($db->query($sql) as $row) {
+            $result[] = $row;
         }
 
-        mysqli_free_result($rs);
-        mysqli_close($db);
+        $db = null;
 
         return wrap_response($result);
 
@@ -172,16 +166,15 @@ function getIntraMonth($request) {
 # Prüft, ob das angegebene Konto ein Aktiv-Konto ist.
 function isAktivKonto($kontonummer) {
     if(!is_numeric($kontonummer)) return false;
-    $db = getDbConnection();
-    $rs = mysqli_query($db, "select kontenart_id from fi_konto "
+    $db = getPdoConnection();
+    $sql = "select kontenart_id from fi_konto "
                             ."where mandant_id = ".$this->mandant_id
-                            ." and kontonummer = '".$kontonummer."'");
+                            ." and kontonummer = '".$kontonummer."'";
     $isActive = false;
-    if($obj = mysqli_fetch_object($rs)) {
+    if($obj = $db->query($sql)) {
         $isActive = $obj->kontenart_id == 1; // Ist Aktiv-Konto
     }
-    mysqli_free_result($rs);
-    mysqli_close($db);
+    $db = null;
     return $isActive;
 }
 
@@ -234,12 +227,12 @@ function is_number($value) {
 # eine GUV-Betrachtung (nur Aufwand und Ertrag) oder
 # eine Bestandsbetrachtung (nur Aktiv und Passiv) handelt.
 function getRechnungsart($kto_prepared) {
-    $db = getDbConnection();
+    $db = getPdoConnection();
     $kontenarten = array();
     $type = 0;
     $sql = "select distinct kontenart_id from fi_konto where kontonummer in ($kto_prepared)";
-    $rs = mysqli_query($db, $sql);
-    while($obj = mysqli_fetch_object($rs)) {
+  
+    while($obj = $db->query($sql) {
         $kontenart_id = $obj->kontenart_id;
         if($type == 0) {
             // noch ERGEBNISOFFEN
@@ -253,8 +246,7 @@ function getRechnungsart($kto_prepared) {
             if($kontenart_id == 1 || $kontenart_id == 2) throw new Exception("Falsche Mischung von Kontenarten");
         }
     }
-    mysqli_free_result($rs);
-    mysqli_close($db);
+    $db = null;
     return $type;
 }
 
