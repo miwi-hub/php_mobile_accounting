@@ -47,7 +47,7 @@ function getQuickMenu() {
     $lst = array();
     $stmt = $pdo->prepare("select * from fi_quick_config where mandant_id = :mandant_id order by config_knz");
     $stmt->execute(array("mandant_id" => $this->mandant_id));
-    while($obj = $stmt->fetchObject()) {
+    while($obj = $stmt->fetchObject(PDO::FETCH_ASSOC)) {
         $lst[] = $obj;
     }
     return wrap_response($lst);

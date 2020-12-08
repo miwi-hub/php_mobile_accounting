@@ -3,17 +3,16 @@
 include_once("lib/Database.php");
 
 # Datenbankkonfig testen:
-$db = getDbConnection();
+//$db = getDbConnection();
 #print("ERROR?: " . mysqli_error($db));
-$rs = mysqli_query($db, "select * from information_schema.tables");
+//$rs = mysqli_query($db, "select * from information_schema.tables");
 #print("ERROR?: " . mysqli_error($db));
-mysqli_close($db);
-
+//mysqli_close($db);
 
 $_REQUEST = array();
 $_SERVER = array();
 # Basis
-$_SERVER['REMOTE_USER'] = 'test';
+$_SERVER['REMOTE_USER'] = 'michael';
 # Test 1
 $_REQUEST['controller'] = 'konto';
 $_REQUEST['action'] = 'list';

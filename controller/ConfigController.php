@@ -41,11 +41,13 @@ class ConfigController {
     function listConfigEntries() {
         $db = getPdoConnection();
         $lst = array();
-        $sql = "select * from fi_config_params where mandant_id = $this->mandant_id order by param_desc";
-        foreach($db->query($sql) as $row) {
+	$sql = 'select * from fi_config_params where mandant_id = :mandant_id order by param_desc';
+	$stmt = $db->prepare($sql);
+	$stmt->execute(array(':mandant_id' => $this->mandant_id));  
+      while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $lst[] = $row;
         }
-        $db->closeCursor();
+        $stmt->closeCursor();
         return wrap_response($lst);
     }
 

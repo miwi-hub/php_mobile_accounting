@@ -130,8 +130,8 @@ function setRemoteUser($user) {
 	$stmt = $db->prepare('select mandant_id, user_id from fi_user where user_name = ?');    
         $rs = $stmt->execute(array($user));
 	while ( $rs = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $this->mandant = $rs->mandant_id;
-            $this->user_id = $rs->user_id; }
+            $this->mandant = $rs['mandant_id'];
+            $this->user_id = $rs['user_id']; }
         } catch (PDOException $e) {
             print $e->getMessage();
             throw new Exception("Kein Mandant für den Benutzer $user konfiguriert");

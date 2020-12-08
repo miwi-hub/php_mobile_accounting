@@ -24,7 +24,9 @@ private $dispatcher, $mandant_id;
 
 # Einsprungpunkt, hier übergibt das Framework
 function invoke($action, $request, $dispatcher) {
-
+//$message = array();
+//$message['message'] = "test";
+//return $message;
     $this->dispatcher = $dispatcher;
     $this->mandant_id = $dispatcher->getMandantId();
 
@@ -58,37 +60,39 @@ function getBilanz($request) {
     $result = array();
     $db = getPdoConnection();
     $year = $request['year'];
-
     if($this->isValidYear($year)) {
         $query = new QueryHandler("bilanz_detail.sql");
         $query->setParameterUnchecked("mandant_id", $this->mandant_id);
-        $query->setNumericParameter("year", $year+1);
-        $query->setNumericParameter("geschj_start_monat",
-            get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
+        $query->setNumericParameter("year", $year);
+ //       $query->setNumericParameter("geschj_start_monat",
+ //           get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql = $query->getSql();
 
+	$stmt = $db->prepare($sql);
+	$stmt->execute();
 
         $zeilen = array();
-        foreach ($db->query($sql) as $row) {
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $zeilen[] = $row;
         }
         $row = null;
+	$stmt->closeCursor();
         $result['zeilen'] = $zeilen;
 
         $query = new QueryHandler("bilanz_summen.sql");
         $query->setParameterUnchecked("mandant_id", $this->mandant_id);
-        $query->setNumericParameter("year", $year+1);
-        $query->setNumericParameter("geschj_start_monat",
-            get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
+        $query->setNumericParameter("year", $year);
+//        $query->setNumericParameter("geschj_start_monat",
+//            get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql = $query->getSql();
-
+	$stmt = $db->prepare($sql);
+        $stmt->execute();
         $ergebnisse = array();
-        foreach ($db->query($sql) as $row) {
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $ergebnisse[] = $row;
         }
-        $row = null;
         $result['ergebnisse'] = $ergebnisse;
-        $db = null;
+	$stmt->closeCursor();
         return wrap_response($result);
     } else {
         return wrap_response("Fehler aufgetreten, das angegebene Jahr hat ein ungültiges Format");
@@ -108,13 +112,14 @@ function getGuV($request) {
         $query->setParameterUnchecked("geschj_start_monat",
             get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql = $query->getSql();
-   
+        $stmt = $db->prepare($sql);
+        $stmt->execute(); 
         $zeilen = array();
         $result = array();
-        foreach ($db->query($sql) as $row) {
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $zeilen[] = $row;
         }
-        $row = null;
+        $stmt->closeCursor();
         $result['zeilen'] = $zeilen;
 
         $query = new QueryHandler("guv_jahr_summen.sql");
@@ -123,14 +128,15 @@ function getGuV($request) {
         $query->setParameterUnchecked("geschj_start_monat",
             get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql2  = $query->getSql();
-
+        $stmt = $db->prepare($sql2);
+        $stmt->execute();
         $ergebnisse = array();
-        foreach ( $db->query($sql2) as $row) {
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $ergebnisse[] = $row;
         }
-        $row = null;
+        $stmt->closeCursor();
         $result['ergebnisse'] = $ergebnisse;
-        $db = null;
+      
         return wrap_response($result);
     } else {
         return wrap_response("Der übergebene Parameter year erfüllt nicht die Formatvorgaben für gültige Jahre");
@@ -219,19 +225,19 @@ function getMonthFromRequest($request) {
 
 # Liefert eine Liste der gültigen Monate aus den Buchungen des Mandanten
 function getMonths() {
-    $db = getPdoConnection();
+//    $db = getPdoConnection();
     $months = array();
 
-    $sql =  "select distinct (year(datum)*100)+month(datum) as yearmonth ";
-    $sql .= " from fi_buchungen where mandant_id = ".$this->mandant_id;
-    $sql .= " order by yearmonth desc";
+//    $sql =  "select distinct year(date_add((datum)*100)+month(datum)) as yearmonth ";
+//    $sql .= " from fi_buchungen where mandant_id = ".$this->mandant_id;
+//    $sql .= " order by yearmonth desc";
 
-    foreach ( $db->query($sql) as $row) {
-        $months[] = $row->yearmonth;
-    }
-
-    $row = null;;
-    $db  = null;;
+//    foreach ( $db->query($sql) as $row) {
+//        $months[] = $row->yearmonth;
+//    }
+$months[] = 202001;
+//    $row = null;;
+//    $db  = null;
     return wrap_response($months);
 }
 
@@ -240,16 +246,14 @@ function getYears() {
     $db = getPdoConnection();
     $years = array();
 
-    $sql = "select distinct year(date_add(datum, INTERVAL 13-";
-    $sql .= get_config_key("geschj_start_monat", $this->mandant_id)->param_value." MONTH))-1 as year ";
-    $sql .= "from fi_buchungen where mandant_id = ".$this->mandant_id;
-    $sql .= " order by year desc";
-
-    foreach ( $db->query($sql) as $row) {
-        $years[] = $row->year;
-    }
-
-    $row = null;;
+    $sql = "select distinct to_char(datum, 'YYYY') as year from fi_buchungen where mandant_id = ".$this->mandant_id." order by year desc";
+    $stmt = $db->prepare($sql);	
+    $stmt->execute();
+    while ( $row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $years[] = $row['year'];
+    };
+    $row = null;
+    $stmt->closeCursor();
     $db = null;
     return wrap_response($years);
 }

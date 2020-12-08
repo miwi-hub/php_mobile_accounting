@@ -1,4 +1,5 @@
-select base_view.kontenart_id, ka.bezeichnung as bezeichnung, base_view.monat, sum(base_view.betrag) as saldo
+select * from fi_mandant;
+/* select base_view.kontenart_id, ka.bezeichnung as bezeichnung, base_view.monat, sum(base_view.betrag) as saldo
 from (
 
 select k.kontenart_id, (year(b.datum)*100)+month(b.datum) as monat, 
@@ -61,3 +62,4 @@ on base_view.kontenart_id = ka.kontenart_id
 group by ka.kontenart_id, ka.bezeichnung, monat
 having monat is not null
 order by monat, ka.bezeichnung
+*/

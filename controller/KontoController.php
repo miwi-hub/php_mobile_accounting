@@ -69,11 +69,12 @@ function getSaldo($id) {
 function getKonten() {
     $db = getPdoConnection();
     $result = array();
-    $sql = "select * from fi_konto where mandant_id = $this->mandant_id order by kontenart_id, kontonummer";
-    while($db->query($sql) as $row) {
-        $result[] = $row;
+    $stmt = $db->prepare( "select * from fi_konto where mandant_id = :mandant_id order by kontenart_id, kontonummer");
+    $stmt->execute(array(':mandant_id' => $this->mandant_id));  
+    while($rs = $stmt->fetch(PDO::FETCH_ASSOC) ) {
+        $result[] = $rs;
     }
-    $db = null;
+    $stmt->closeCursor();
     return wrap_response($result);
 }
 
