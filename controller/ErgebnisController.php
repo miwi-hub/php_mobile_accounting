@@ -109,8 +109,8 @@ function getGuV($request) {
         $query = new QueryHandler("guv_jahr.sql");
         $query->setParameterUnchecked("mandant_id", $this->mandant_id);
         $query->setParameterUnchecked("jahr_id", $year);
-        $query->setParameterUnchecked("geschj_start_monat",
-            get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
+//        $query->setParameterUnchecked("geschj_start_monat",
+//            get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql = $query->getSql();
         $stmt = $db->prepare($sql);
         $stmt->execute(); 
@@ -124,9 +124,9 @@ function getGuV($request) {
 
         $query = new QueryHandler("guv_jahr_summen.sql");
         $query->setParameterUnchecked("mandant_id", $this->mandant_id);
-        $query->setParameterUnchecked("jahr_id", $year);
-        $query->setParameterUnchecked("geschj_start_monat",
-            get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
+        $query->setParameterUnchecked("year", $year);
+//        $query->setParameterUnchecked("geschj_start_monat",
+//            get_config_key("geschj_start_monat", $this->mandant_id)->param_value);
         $sql2  = $query->getSql();
         $stmt = $db->prepare($sql2);
         $stmt->execute();
@@ -151,29 +151,34 @@ function getGuVMonth($request) {
     $db = getPdoConnection();
     $query = new QueryHandler("guv_monat.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
-    $query->setParameterUnchecked("monat_id", $month_id);
+//    $query->setParameterUnchecked("monat","01"));
+//    $query->setParameterUnchecked("jahr","2020");
+//    $query->setParameterUnchecked("monat_id", $month_id);
     $sql = $query->getSql();
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
 
     $zeilen = array();
     $result = array();
-    foreach ($db->query($sql) as $row) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $zeilen[] = $row;
     }
-    $row = null;
+    $stmt->closeCursor();
     $result['zeilen'] = $zeilen;
 
     $query = new QueryHandler("guv_monat_summen.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $query->setParameterUnchecked("monat_id", $month_id);
     $sql = $query->getSql();
-
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
     $ergebnisse = array();
-    foreach ($db->query($sql) as $row) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $ergebnisse[] = $row;
     }
-    $row = null;
+    $stmt->closeCursor();
     $result['ergebnisse'] = $ergebnisse;
-    $db = null;
+    
 
     return wrap_response($result);
 }
@@ -225,19 +230,19 @@ function getMonthFromRequest($request) {
 
 # Liefert eine Liste der gültigen Monate aus den Buchungen des Mandanten
 function getMonths() {
-//    $db = getPdoConnection();
+    $db = getPdoConnection();
     $months = array();
 
-//    $sql =  "select distinct year(date_add((datum)*100)+month(datum)) as yearmonth ";
-//    $sql .= " from fi_buchungen where mandant_id = ".$this->mandant_id;
-//    $sql .= " order by yearmonth desc";
-
-//    foreach ( $db->query($sql) as $row) {
-//        $months[] = $row->yearmonth;
-//    }
-$months[] = 202001;
-//    $row = null;;
-//    $db  = null;
+    $sql =  "select distinct to_char(datum, 'YYYYMM') as yearmonth ";
+    $sql .= " from fi_buchungen where mandant_id = ".$this->mandant_id;
+    $sql .= " order by yearmonth desc";
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while ( $row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $months[] = $row['yearmonth'];
+    }
+//$months[] = 202001;
+    $stmt->closeCursor();
     return wrap_response($months);
 }
 
@@ -252,9 +257,7 @@ function getYears() {
     while ( $row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $years[] = $row['year'];
     };
-    $row = null;
     $stmt->closeCursor();
-    $db = null;
     return wrap_response($years);
 }
 
