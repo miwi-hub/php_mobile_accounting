@@ -151,9 +151,7 @@ function getGuVMonth($request) {
     $db = getPdoConnection();
     $query = new QueryHandler("guv_monat.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
-//    $query->setParameterUnchecked("monat","01"));
-//    $query->setParameterUnchecked("jahr","2020");
-//    $query->setParameterUnchecked("monat_id", $month_id);
+    $query->setParameterUnchecked("yearmonth","'". $month_id ."'");
     $sql = $query->getSql();
     $stmt = $db->prepare($sql);
     $stmt->execute();
@@ -168,7 +166,7 @@ function getGuVMonth($request) {
 
     $query = new QueryHandler("guv_monat_summen.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
-    $query->setParameterUnchecked("monat_id", $month_id);
+    $query->setParameterUnchecked("yearmonth", "'". $month_id ."'");
     $sql = $query->getSql();
     $stmt = $db->prepare($sql);
     $stmt->execute();
@@ -192,25 +190,26 @@ function getGuVPrognose() {
     $query = new QueryHandler("guv_prognose.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $sql = $query->getSql();
-
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
     $result = array();
     $result['detail'] = array();
-    foreach ($db->query($sql) as $row) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result['detail'][] = $row;
     }
 
-    $row = null;
+    $stmt->closeCursor();
 
     $query = new QueryHandler("guv_prognose_summen.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $sql = $query->getSql();
-    
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
     $result['summen'] = array();
-    foreach ( $db->query($sql) as $row) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result['summen'][] = $row;
     }
-    $row = null;
-    $db = null;;
+    $stmt->closeCursor();
     return wrap_response($result);
 }
 
@@ -272,26 +271,22 @@ function getVerlauf($request) {
     if(is_numeric($kontenart_id)) {
 
         $db = getPdoConnection();
-
-        if($kontenart_id == 4 || $kontenart_id == 1)
-            $sql =  "select (year(datum)*100)+month(datum) as groupingx, sum(betrag)*-1 as saldo ";
-        else
-            $sql =  "select (year(datum)*100)+month(datum) as groupingx, sum(betrag) as saldo ";
-        $sql .= "from fi_ergebnisrechnungen_base ";
-        $sql .= "where kontenart_id = $kontenart_id and gegenkontenart_id <> 5 and mandant_id = $this->mandant_id ";
+        $sql =  "select yearmonth as groupingx, sum(saldo) as saldo ";
+        $sql .= "from fi_ergebnisrechnungen ";
+        $sql .= "where kontenart_id = $kontenart_id and mandant_id = $this->mandant_id ";
 
         # Nur immer die letzten 12 Monate anzeigen
-        $sql .= "and (year(datum)*100)+month(datum) >= ((year(now())*100)+month(now()))-100 ";
-
         $sql .= "group by kontenart_id, groupingx ";
-        $sql .= "order by groupingx";
+        $sql .= "order by groupingx desc ";
+        $sql .= "limit 12";
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
 
-        foreach ( $db->query($sql) as $row) {
+        while ($row =  $stmt->fetch(PDO::FETCH_ASSOC)) {
             $result[] = $row;
         }
 
-        $row = null;
-        $db  = null;
+        $stmt->closeCursor();
     } 
     return wrap_response($result);
 }
@@ -301,22 +296,21 @@ function getVerlaufGewinn() {
     $result = array();
     $db = getPdoConnection();
 
-    $sql =  "select (year(datum)*100)+month(datum) as groupingx, sum(betrag*-1) as saldo ";
-    $sql .= "from fi_ergebnisrechnungen_base ";
-    $sql .= "where kontenart_id in (3, 4) and gegenkontenart_id <> 5 and mandant_id = $this->mandant_id ";
+    $sql =  "select yearmonth as groupingx, sum(saldo) as saldo ";
+    $sql .= "from fi_ergebnisrechnungen ";
+    $sql .= "where kontenart_id in (3, 4) and mandant_id = $this->mandant_id ";
 
     # Nur immer die letzten 12 Monate anzeigen
-    $sql .= "and (year(datum)*100)+month(datum) >= ((year(now())*100)+month(now()))-100 ";
-
     $sql .= "group by groupingx ";
-    $sql .= "order by groupingx";
-
-    foreach ( $db->query($sql) as $row) {
+    $sql .= "order by groupingx desc ";
+    $sql .= "limit 12";
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while ($row =  $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result[] = $row;
     }
 
-    $row = null;
-    $db  = null;
+    $stmt->closeCursor();
     
     return wrap_response($result);
 }
