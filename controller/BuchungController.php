@@ -69,10 +69,12 @@ private function createBuchungInternal($input) {
             ." values ($this->mandant_id, '".$input['buchungstext']
             ."', '".$input['sollkonto']."', '".$input['habenkonto']."', ".$input['betrag'].", '"
             .$input['datum']."', ".$this->dispatcher->getUserId().", ".$temp_op.")";
-        $db = getPdoConnection(),
-        $db->query($sql);
+        $db = getPdoConnection();
+        $db->beginTransaction();
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $db->commit();
         $empty = array();
-        $db->closeCursor();
         return wrap_response($empty, "json");
     } else {
         throw new ErrorException("Das Buchungsobjekt enthält nicht gültige Elemente");
@@ -87,11 +89,13 @@ function getTop25() {
     $sql = "select * from fi_buchungen "
         ."where mandant_id = $this->mandant_id "
         ."order by buchungsnummer desc limit 25";
-    foreach ($db->query($sql) as $row)  {
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC))  {
         $top[] = $row;
     }
     
-    $db->closeCursor();
+    $stmt->closeCursor();
     return wrap_response($top);
 }
 
@@ -103,12 +107,16 @@ function getOpList() {
         ."where mandant_id = $this->mandant_id "
         ."and is_offener_posten = 1 "
         ."order by buchungsnummer";
-
-    foreach ($db->query($sql) as $row) {
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+//workaround, da Anwendung noch nicht mit Währung umgehen kann
+//        $row['betrag'] = str_replace("$","",$row['betrag']);
+$row['betrag'] = filter_var($row['betrag'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
         $op[] = $row;
     }
 
-    $db->closeCursor();
+    $stmt->closeCursor();
     return wrap_response($op);
 }
 
@@ -118,7 +126,7 @@ function closeOpAndGetList($request) {
     $inputJSON = file_get_contents('php://input');
     $input = json_decode( $inputJSON, TRUE );
     if($this->isValidOPCloseRequest($input)) {
-        $db->begin_transaction();
+        $db->beginTransaction();
         try {
             // Buchung anlegen
             $buchung = $input['buchung'];
@@ -129,9 +137,11 @@ function closeOpAndGetList($request) {
                 $sql = "update fi_buchungen set is_offener_posten = 0"
                     . " where mandant_id = $this->mandant_id "
                     . " and buchungsnummer = $buchungsnummer";
-                $db->query($sql);
+                $db->beginTransaction();
+                $stmt = $db->prepare($sql);
+                $stmt->execute();
+                $db->commit();
             }
-            $db->commit();
         } catch (Exception $e) {
             $db->rollback();
             throw $e;
@@ -140,7 +150,6 @@ function closeOpAndGetList($request) {
         $op = getOPList();
         return wrap_response($op);
     } else {
-        $db->closeCurser();
         throw new ErrorException("Der OP-Close-Request ist ungültig!");
     }
 }
@@ -162,14 +171,15 @@ function getListByKonto($request) {
         $sql .= "union ";
         $sql .= "select buchungsnummer, buchungstext, sollkonto as gegenkonto, betrag*-1 as betrag, datum, is_offener_posten ";
         $sql .= "from fi_buchungen ";
-        $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' and year(datum) = $jahr ";
+        $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' and to_char(datum,'YYYY') = $jahr ";
         $sql .= "order by buchungsnummer desc";
-        
-        foreach ($db->query($sql) as $row) {
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $result_list[] = $row;
         }
 
-        $db->closeCursor();
+        $stmt->closeCursor();
         $result['list'] = $result_list;
 
         // Saldo laden: 
@@ -177,14 +187,14 @@ function getListByKonto($request) {
         $sql .= "where mandant_id = $this->mandant_id and sollkonto = '$kontonummer' ";
         $sql .= "union SELECT sum(betrag)*-1 as betrag from fi_buchungen ";
         $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' ) as a ";
-
+       
         if($obj = $db->query($sql)) {
             $result['saldo'] = $obj->saldo;
         } else {
             $result['saldo'] = "unbekannt";
         }
 
-        $db->closeCursor();
+//        $db->closeCursor();
         return wrap_response($result);
     # Wenn konto keine Ziffernfolge ist, leeres Ergebnis zurück liefern
     } else {

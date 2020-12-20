@@ -13,7 +13,8 @@
         <select id="op_habenkonto2" data-bind="value: buchen().selectedBuchung().habenkonto, options: konten().konten, optionsText: 'tostring', optionsValue: 'kontonummer'">
         </select>
         <label id="op_betrag" data-bind="text:i18n.buchen.betrag"></label>
-        <input type="number" step="0.01" id="op_betrag" data-bind="value: buchen().selectedBuchung().betrag">
+ <!--       <input type="number" step="any" id="op_betrag" data-bind="value: buchen().selectedBuchung().betrag"> -->
+        <input type="text" id="op_betrag" data-bind="value: buchen().selectedBuchung().betrag">
         <label id="op_buchungsdatum" data-bind="text:i18n.buchen.buchungsdatum"></label>
         <input type="date" id="op_buchungsdatum" data-bind="value: buchen().selectedBuchung().datum">
         <label><input type="checkbox" data-bind="jqmChecked: buchen().selectedBuchung().is_offener_posten"> offener Posten</label>
