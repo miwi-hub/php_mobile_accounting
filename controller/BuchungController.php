@@ -122,11 +122,9 @@ $row['betrag'] = filter_var($row['betrag'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER
 
 # liest die offenen Posten aus
 function closeOpAndGetList($request) {
-    $db = getPdoConnection();
     $inputJSON = file_get_contents('php://input');
     $input = json_decode( $inputJSON, TRUE );
     if($this->isValidOPCloseRequest($input)) {
-        $db->beginTransaction();
         try {
             // Buchung anlegen
             $buchung = $input['buchung'];
@@ -134,9 +132,10 @@ function closeOpAndGetList($request) {
             // Offener-Posten-Flag auf false setzen
             $buchungsnummer = $input['offenerposten'];
             if (is_numeric($buchungsnummer)) {
-                $sql = "update fi_buchungen set is_offener_posten = 0"
-                    . " where mandant_id = $this->mandant_id "
-                    . " and buchungsnummer = $buchungsnummer";
+                $sql  = "update fi_buchungen set is_offener_posten = 0";
+                $sql .= " where mandant_id = $this->mandant_id"; 
+                $sql .= " and buchungsnummer = $buchungsnummer";
+                $db = getPdoConnection();
                 $db->beginTransaction();
                 $stmt = $db->prepare($sql);
                 $stmt->execute();
@@ -147,8 +146,22 @@ function closeOpAndGetList($request) {
             throw $e;
         }
         // Aktualisierte Offene-Posten-Liste an den Client liefern
-        $op = getOPList();
-        return wrap_response($op);
+   	 $db = getPdoConnection();
+   	 $op = array();
+   	 $sql = "select * from fi_buchungen "
+       		 ."where mandant_id = $this->mandant_id "
+       		 ."and is_offener_posten = 1 "
+       		 ."order by buchungsnummer";
+   	 $stmt = $db->prepare($sql);
+   	 $stmt->execute();
+   	 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+//workaround, da Anwendung noch nicht mit Währung umgehen kann
+//        $row['betrag'] = str_replace("$","",$row['betrag']);
+		$row['betrag'] = filter_var($row['betrag'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+       		 $op[] = $row;
+   	 }
+   	 $stmt->closeCursor();
+         return wrap_response($op);
     } else {
         throw new ErrorException("Der OP-Close-Request ist ungültig!");
     }
@@ -167,11 +180,11 @@ function getListByKonto($request) {
         // Buchungen laden
         $sql =  "SELECT buchungsnummer, buchungstext, habenkonto as gegenkonto, betrag, datum, is_offener_posten ";
         $sql .= "FROM fi_buchungen "; 
-        $sql .= "WHERE mandant_id = $this->mandant_id and sollkonto = '$kontonummer' and year(datum) = $jahr ";
+        $sql .= "WHERE mandant_id = $this->mandant_id and sollkonto = '$kontonummer' and to_char(datum,'YYYY') = '$jahr' ";
         $sql .= "union ";
         $sql .= "select buchungsnummer, buchungstext, sollkonto as gegenkonto, betrag*-1 as betrag, datum, is_offener_posten ";
         $sql .= "from fi_buchungen ";
-        $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' and to_char(datum,'YYYY') = $jahr ";
+        $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' and to_char(datum,'YYYY') = '$jahr' ";
         $sql .= "order by buchungsnummer desc";
         $stmt = $db->prepare($sql);
         $stmt->execute();
@@ -187,14 +200,12 @@ function getListByKonto($request) {
         $sql .= "where mandant_id = $this->mandant_id and sollkonto = '$kontonummer' ";
         $sql .= "union SELECT sum(betrag)*-1 as betrag from fi_buchungen ";
         $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' ) as a ";
-       
-        if($obj = $db->query($sql)) {
-            $result['saldo'] = $obj->saldo;
-        } else {
-            $result['saldo'] = "unbekannt";
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        while ($obj = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $result['saldo'] = $obj['saldo'];
         }
-
-//        $db->closeCursor();
+        $stmt->closeCursor();
         return wrap_response($result);
     # Wenn konto keine Ziffernfolge ist, leeres Ergebnis zurück liefern
     } else {
