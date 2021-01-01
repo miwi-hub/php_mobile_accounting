@@ -4,6 +4,7 @@ select konto,
   from fi_ergebnisrechnungen
  where kontenart_id in (3,4)
    and mandant_id = #mandant_id#
+   and year       = #jahr_id#
  group by konto,
           kontenname
  order by konto

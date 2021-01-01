@@ -190,8 +190,7 @@ hhb.model.types.ErgebnisModel = function() {
         self.monat_selection_visible(false);
         self.onchange = self.bilanz;
         priv.loadErgebnisrechnung("bilanz", hhb.i18n.ergebnis.bilanz, hhb.i18n.ergebnis.vermoegen_und_kapital,
-{'year':2020});    
-//        {'year':self.selected_jahr()});
+             {'year':self.selected_jahr()});
     };
 
     // Funktion zum Laden der Daten der GuV-Rechnung nach Jahren

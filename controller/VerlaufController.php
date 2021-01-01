@@ -45,6 +45,7 @@ function getMonatsSalden($kontonummer) {
         $db = getPdoConnection();
         $rechnungsart = $this->getRechnungsart($kto_prepared);
         if($rechnungsart != 0) {
+/*
            if($rechnungsart == 2) {
                 // Monatssummen, fuer Aufwands- und Ertragskonten
                 $sql = "select groupingx, sum(saldo)*-1 as saldo from "
@@ -70,16 +71,21 @@ function getMonatsSalden($kontonummer) {
                       ."where konto in ($kto_prepared) and x1.groupingx > ((year(now())*100)+month(now()))-100 "
                       ."group by groupingx";
 
-            }
+            } */
+            $sql = "select sum(saldo) as saldo "
+                  ."from fi_ergebnisrechnungen "
+                  ."where konto in ($kto_prepared) "
+                  ."order by yearmonth desc";
+            $stmt = $db->prepare($sql);
+            $stmt->execute();
             $result = array();
-            while($db->query($sql) as $row) {
+            while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $result[] = $row;
             }
             
-            $db = null;
+            $stmt->closeCursor();
             return wrap_response($result);
         } else {
-            mysqli_close($db);
             throw new Exception("Mindestens eine Kontonummer ist unbekannt");
         }
     } else throw new Exception("Mindestens eine Kontonummer ist nicht numerisch");
@@ -121,11 +127,12 @@ function getCashFlow($kontonummer, $side) {
             $db = null;
             throw new Exception("Gültige Werte für side sind S und H");
         }
-
-        while($db->query($sql) as $row) {
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $values[] = $row;
         }
-        $db = null;
+        $stmt->closeCursor();
     } else {
         throw new Exception("getCashFlow ist nur für Aktiv-Konten verfügbar");
     }
@@ -147,11 +154,13 @@ function getIntraMonth($request) {
         $sql = $query->getSql();
 
         $result = array();
-        while($db->query($sql) as $row) {
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $result[] = $row;
         }
 
-        $db = null;
+        $stmt->closeCursor();
 
         return wrap_response($result);
 
