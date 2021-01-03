@@ -41,8 +41,10 @@ function getKontenart($id) {
     if(is_numeric($id)) {
         $db = getPdoConnection();
         $sql = "select * from fi_kontenart where kontenart_id = $id";
-        $erg = $db->query($sql);
-        $db = null;
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $erg = $stmt->fetchAll();
+        $stmt->closeCursor();
         return wrap_response($erg);
     } else {
         throw new ErrorException("Eine nicht numerische Kontenart-ID ist ungültig");
@@ -54,10 +56,12 @@ function getKontenarten() {
     $db = getPdoConnection();
     $result = array();
     $sql = "select * from fi_kontenart";
-    while($db->query($sql) as $row) {
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result[] = $row;
     }
-    $db = null;
+    $stmt->closeCursor();
     return wrap_response($result);
 }
 

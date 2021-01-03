@@ -85,9 +85,12 @@ function saveKonto($request) {
     $input = json_decode( $inputJSON, TRUE );
     if($this->isValidKonto($input)) { 
         $sql = "update fi_konto set bezeichnung = '".$input['bezeichnung']."', kontenart_id = ".$input['kontenart_id']
-              ." where kontonummer = ".$input['kontonummer']." and mandant_id = ".$this->mandant_id;
-        $db->query($sql);
-        $db = null;
+              ." where kontonummer = '".$input['kontonummer']."' and mandant_id = ".$this->mandant_id;
+        $db->beginTransaction();
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $db->commit();
+        $stmt->closeCursor();
         $void = array();
         return wrap_response($void);
     } else {
@@ -104,8 +107,11 @@ function createKonto($request) {
         $sql = "insert into fi_konto (kontonummer, bezeichnung, kontenart_id, mandant_id) values ('"
               .$input['kontonummer']."', '".$input['bezeichnung']
               ."', ".$input['kontenart_id'].", ".$this->mandant_id.")";
-        $db->query($sql);
-        $db = null;
+        $db->beginTransaction();
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $db->commit();
+        $stmt->closeCursor();
         $void = array();
         return wrap_response($void);
     } else {
