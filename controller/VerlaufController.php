@@ -42,9 +42,10 @@ function invoke($action, $request, $dispatcher) {
 function getMonatsSalden($kontonummer) {
     if(is_numeric($kontonummer) || $this->is_numeric_list($kontonummer)) {
         $kto_prepared = $this->prepareKontoNummern($kontonummer);
-        $db = getPdoConnection();
-        $rechnungsart = $this->getRechnungsart($kto_prepared);
-        if($rechnungsart != 0) {
+        try {
+          $db = getPdoConnection();
+          $rechnungsart = $this->getRechnungsart($kto_prepared);
+//        if($rechnungsart != 0) {
 /*
            if($rechnungsart == 2) {
                 // Monatssummen, fuer Aufwands- und Ertragskonten
@@ -72,28 +73,47 @@ function getMonatsSalden($kontonummer) {
                       ."group by groupingx";
 
             } */
-            $sql = "select sum(saldo) as saldo "
+            if($rechnungsart == 1) {
+            $sql = "select yearmonth as groupingx, "
+                  ."( select sum(saldo) from fi_ergebnisrechnungen "
+                  ."   where yearmonth <= base.yearmonth "
+                  ."     and konto in ($kto_prepared) "
+                  ."     and mandant_id = '$this->mandant_id' ) as saldo " 
+                  ."from fi_ergebnisrechnungen as base "
+                  ."where konto in ($kto_prepared) "
+                  ."  and mandant_id = '$this->mandant_id' "  
+                  ."group by yearmonth "
+                  ."order by yearmonth desc"; }
+            if($rechnungsart == 2) {
+            $sql = "select yearmonth as groupingx, "
+                  ."       sum(saldo) as saldo "
                   ."from fi_ergebnisrechnungen "
                   ."where konto in ($kto_prepared) "
-                  ."order by yearmonth desc";
+                  ."  and mandant_id = '$this->mandant_id' "  
+                  ."group by yearmonth "
+                  ."order by yearmonth desc"; }
             $stmt = $db->prepare($sql);
             $stmt->execute();
             $result = array();
             while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $result[] = $row;
             }
-            
+
             $stmt->closeCursor();
             return wrap_response($result);
-        } else {
-            throw new Exception("Mindestens eine Kontonummer ist unbekannt");
+        } catch (Exception $e) {
+          throw $e;
         }
-    } else throw new Exception("Mindestens eine Kontonummer ist nicht numerisch");
+  //      } else {
+  //          throw new Exception("Mindestens eine Kontonummer ist unbekannt");
+//        }
+   } else throw new Exception("Mindestens eine Kontonummer ist nicht numerisch");
+
 }
 
 # Ermittelt die monatlichen Werte des Zu- oder Abfluss 
-# ($side = S => Sollbuchungen)
-# ($side = H => Habenbuchungen)
+# (side = S => Sollbuchungen)
+# (side = H => Habenbuchungen)
 # von Aktivkonten. Bei anderen Kontenarten wird eine
 # Exception zurückgeliefert
 function getCashFlow($kontonummer, $side) {
@@ -124,7 +144,6 @@ function getCashFlow($kontonummer, $side) {
             $sql .= " and k.kontenart_id <> 5 ";
             $sql .= "group by (year(b.datum)*100)+month(b.datum);";
         } else {
-            $db = null;
             throw new Exception("Gültige Werte für side sind S und H");
         }
         $stmt = $db->prepare($sql);
@@ -136,7 +155,7 @@ function getCashFlow($kontonummer, $side) {
     } else {
         throw new Exception("getCashFlow ist nur für Aktiv-Konten verfügbar");
     }
-    return wrap_response($values);
+    return wrap_response($values); 
 }
 
 # Monats-internen Verlauf ermitteln
@@ -169,7 +188,7 @@ function getIntraMonth($request) {
       }
     } else {
         return wrap_response("Parameter month_id fehlt");
-    }
+    } 
 }
 
 # Prüft, ob das angegebene Konto ein Aktiv-Konto ist.
@@ -184,7 +203,7 @@ function isAktivKonto($kontonummer) {
         $isActive = $obj->kontenart_id == 1; // Ist Aktiv-Konto
     }
     $db = null;
-    return $isActive;
+    return $isActive; 
 }
 
 # Macht aus einer oder mehreren durch Komma getrennten Kontonummern
@@ -202,7 +221,7 @@ function kontonummernToArray($value) {
             }
         }
     }
-    return $list;
+    return $list; 
 }
 
 # Macht aus einer oder mehreren durch Komma getrennten Kontonummern
@@ -215,21 +234,21 @@ function prepareKontoNummern($value) {
         $result .= "'".$item."',";
     }
     $result = substr($result, 0, strlen($result)-1);
-    return $result;
+    return $result; 
 }
 
 # Prüft mittels RegEx ob $value ausschließlich aus Ziffern und Kommas besteht
 function is_numeric_list($value) {
     $pattern = '/[^0-9,]/';
     preg_match($pattern, $value, $results);
-    return count($results) == 0;
+    return count($results) == 0; 
 }
 
 # Prüft mittels RegEx ob der übergebene Wert ausschließlich aus Ziffern besteht
 function is_number($value) {
     $pattern = '/[^0-9]/';
     preg_match($pattern, $value, $results);
-    return count($results) == 0;
+    return count($results) == 0; 
 }
 
 # Ermittelt, ob es sich bei den ausgewählten Konten um 
@@ -240,9 +259,10 @@ function getRechnungsart($kto_prepared) {
     $kontenarten = array();
     $type = 0;
     $sql = "select distinct kontenart_id from fi_konto where kontonummer in ($kto_prepared)";
-  
-    while($obj = $db->query($sql) {
-        $kontenart_id = $obj->kontenart_id;
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while($obj = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $kontenart_id = $obj['kontenart_id'];
         if($type == 0) {
             // noch ERGEBNISOFFEN
             if($kontenart_id == 1 || $kontenart_id == 2) $type = 1;
@@ -255,9 +275,9 @@ function getRechnungsart($kto_prepared) {
             if($kontenart_id == 1 || $kontenart_id == 2) throw new Exception("Falsche Mischung von Kontenarten");
         }
     }
-    $db = null;
+    $stmt->closeCursor();
     return $type;
-}
+} 
 
 }
 
