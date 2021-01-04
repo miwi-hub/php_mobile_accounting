@@ -176,11 +176,49 @@ function getIntraMonth($request) {
         $stmt = $db->prepare($sql);
         $stmt->execute();
         while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $result[] = $row;
-        }
+
+        $aktuell[$row['tag']] = array( 'tag'      => $row['tag'],
+                                       'aktuell'  => $row['saldo'] );
+     }
 
         $stmt->closeCursor();
+        $month_id_vm = date("Ym", (mktime( 0 , 0, 0, substr($month_id, 4,2)-1, date("d"), substr($month_id, 0, 4))));
+        $query_vm = new QueryHandler("guv_intramonth_aufwand.sql");
+        $query_vm->setParameterUnchecked("mandant_id", $this->mandant_id);
+        $query_vm->setParameterUnchecked("month_id", $month_id_vm);
+        $sql_vm = $query_vm->getSql();
 
+        $stmt = $db->prepare($sql_vm);
+        $stmt->execute();
+        while($row_vm = $stmt->fetch(PDO::FETCH_ASSOC)) {
+          $vormonat[$row_vm['tag']] = array( 'tag'      => $row_vm['tag'],
+                                             'vormonat' => $row_vm['saldo'] );  
+     }
+     $stmt->closeCursor();
+
+// Zusammenführen Vormonat und aktueller Monat
+        foreach($aktuell as $aktuell_row) {
+          if(isset($vormonat[$aktuell_row['tag']])) {
+            $vormonat_betrag = $vormonat[$aktuell_row['tag']]['vormonat'];
+          } else {
+            $vormonat_betrag = '0';
+          } 
+          $result[$aktuell_row['tag']] = array( 'tag'      => $aktuell_row['tag'],
+                                                'aktuell'  => $aktuell_row['aktuell'],
+                                                'vormonat' => $vormonat_betrag );
+        }
+
+        foreach($vormonat as $vormonat_row) {
+          if(isset($aktuell[$vormonat_row['tag']]['aktuell'])) {
+            $aktuell_betrag = $aktuell[$vormonat_row['tag']]['aktuell'];
+          } else {
+            $aktuell_betrag = '0';
+          $result[$vormonat_row['tag']] = array( 'tag'      => $vormonat_row['tag'],
+                                                 'aktuell'  => $aktuell_betrag,
+                                                 'vormonat' => $vormonat_row['vormonat'] );
+          }
+        }
+$result[] = array( 'vm' => $month_id_vm );
         return wrap_response($result);
 
       } else {
