@@ -118,7 +118,8 @@ function getMonatsSalden($kontonummer) {
 # Exception zurückgeliefert
 function getCashFlow($kontonummer, $side) {
     $values = array();
-    if($this->isAktivKonto($kontonummer)) {
+    $db = getPdoconnection();
+/*    if($this->isAktivKonto($kontonummer)) {
         $db = getPdoConnection();
         
         if($side == 'S') {
@@ -145,16 +146,26 @@ function getCashFlow($kontonummer, $side) {
             $sql .= "group by (year(b.datum)*100)+month(b.datum);";
         } else {
             throw new Exception("Gültige Werte für side sind S und H");
-        }
+        }*/
+        $year = date("Y");
+        $sql = "select yearmonth as groupingx, "
+              ."       sum(betrag) as saldo "
+              ."  from fi_buchungen_view "
+              ." where mandant_id = ".$this->mandant_id
+              ."   and konto      = '".$kontonummer."' "
+              ."   and knz        = '".$side."' "
+              ." group by yearmonth "
+              ." order by yearmonth ASC "
+              ." limit 12"; 
         $stmt = $db->prepare($sql);
         $stmt->execute();
         while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $values[] = $row;
         }
         $stmt->closeCursor();
-    } else {
-        throw new Exception("getCashFlow ist nur für Aktiv-Konten verfügbar");
-    }
+//    } else {
+//        throw new Exception("getCashFlow ist nur für Aktiv-Konten verfügbar");
+//    }
     return wrap_response($values); 
 }
 
@@ -236,11 +247,13 @@ function isAktivKonto($kontonummer) {
     $sql = "select kontenart_id from fi_konto "
                             ."where mandant_id = ".$this->mandant_id
                             ." and kontonummer = '".$kontonummer."'";
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
     $isActive = false;
-    if($obj = $db->query($sql)) {
-        $isActive = $obj->kontenart_id == 1; // Ist Aktiv-Konto
+    if($obj = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $isActive = $obj['kontenart_id'] == 1; // Ist Aktiv-Konto
     }
-    $db = null;
+    $stmt->closeCursor();
     return $isActive; 
 }
 
