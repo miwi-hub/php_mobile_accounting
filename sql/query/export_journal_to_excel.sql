@@ -1,7 +1,7 @@
 select data.mandant_id, data.buchungsart, data.buchungsnummer, data.buchungstext,
  data.konto, k.bezeichnung as konto_bezeichnung, k.kontenart_id,
- data.gegenkonto, format(data.betrag, 2, 'de_DE') as betrag, 
- date_format(data.datum, '%d.%m.%Y') as datum
+ data.gegenkonto, data.betrag, 
+ data.datum
 from (select mandant_id as mandant_id
 , 'S' AS buchungsart
 , fi_buchungen.buchungsnummer AS buchungsnummer

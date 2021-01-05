@@ -56,12 +56,13 @@ function getJournal($request) {
     $query = new QueryHandler("export_journal_to_excel.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $sql = $query->getSql();
-		
-    while($db->query($sql) as $row) {
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result[] = $row;
     }
     	
-    $db = null;
+    $stmt->closeCursor();
 	
     return wrap_response($result, $format);
 }
@@ -83,12 +84,13 @@ function getGuvMonate($request) {
     $query = new QueryHandler("guv_monat_csv.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $sql = $query->getSql();
-
-    while($db->query($sql) as $row) {
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result[] = $row;
     }
 
-    $db = null;
+    $stmt->closeCursor();
 
     return wrap_response($result, $format);
 }
@@ -110,8 +112,9 @@ function getBilanzMonate($request) {
     $query = new QueryHandler("bilanz_monat_csv.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
     $sql = $query->getSql();
-
-    while($db->query($sql) as $row) {
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result[] = $row;
     }
 

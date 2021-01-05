@@ -41,7 +41,6 @@ function getMysqlBackup($request) {
     $db = getDBConnection();
     $backup_sql = $this->getKontenBackup($db);
     $backup_sql .= $this->getBuchungenBackup($db);
-    mysqli_close($db);
 
     $result = gzencode($backup_sql);
     return wrap_response($result, "gz");
@@ -55,9 +54,10 @@ private function getBuchungenBackup($db) {
     $sql .= "where mandant_id = $this->mandant_id";
 
     $result = "";
-    $rs = mysqli_query($db, $sql);
+    $rs = $db->prepare($sql);
+    $rs->execute();
 
-    while($obj = mysqli_fetch_object($rs)) {
+    while($obj = $rs->fetch(PDO::FETCH_ASSOC)) {
         $result .= "insert into fi_buchungen (mandant_id, buchungsnummer, buchungstext, sollkonto, habenkonto, ";
         $result .= "betrag, datum, bearbeiter_user_id, is_offener_posten) values ";
         $result .= "(".$obj->mandant_id.", ".$obj->buchungsnummer.", ";
@@ -67,7 +67,7 @@ private function getBuchungenBackup($db) {
         $result .= "".$obj->betrag.", '".$obj->datum."', ";
         $result .= "".$obj->bearbeiter_user_id.", ".$obj->is_offener_posten."); \n";
     }
-    mysqli_free_result($rs);
+    $rs->closeCursor();
     return $result;
 }
 
@@ -78,19 +78,20 @@ private function getKontenBackup($db) {
     $sql .= "where mandant_id = $this->mandant_id";
 
     $result = "";
-    $rs = mysqli_query($db, $sql);
+    $rs = $db->prepare($sql);
+    $rs->execute();
 
-    while($obj = mysqli_fetch_object($rs)) {
+    while($obj = $rs->fetch(PDO::ASSOC)) {
         $result .= "insert into fi_konto (mandant_id, kontonummer, bezeichnung, kontenart_id) values ";
         $result .= "(".$obj->mandant_id.", ";
         $result .= "'".mysqli_escape_string($db, $obj->kontonummer)."', ";
         $result .= "'".mysqli_escape_string($db, $obj->bezeichnung)."', ";
         $result .= "".$obj->kontenart_id."); \n";
     }
-    mysqli_free_result($rs);
+    $rs->closeCursor();
     return $result;
 }
-}
+
 
 private function db_backup( ) {
 
@@ -245,3 +246,4 @@ gzclose($zp);
 fclose($handle);
 }
 }
+
