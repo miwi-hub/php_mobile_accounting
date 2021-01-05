@@ -1,9 +1,9 @@
-select kontenart_id, 
+select kontenart_id,
        sum(saldo) as saldo
   from fi_ergebnisrechnungen
  where kontenart_id in (3, 4)
    and mandant_id = #mandant_id#
-   and yearmonth  = '202006' 
+   and yearmonth  = '#yearmonth#' 
  group by kontenart_id
 union
 select '5' as kontenart_id,
@@ -12,5 +12,6 @@ select '5' as kontenart_id,
            from fi_ergebnisrechnungen
           where kontenart_id in (3,4)
             and mandant_id = #mandant_id#
-            and yearmonth  = '202006'
+            and yearmonth  = '#yearmonth#'
        ) as b
+order by kontenart_id

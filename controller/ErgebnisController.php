@@ -24,9 +24,7 @@ private $dispatcher, $mandant_id;
 
 # Einsprungpunkt, hier übergibt das Framework
 function invoke($action, $request, $dispatcher) {
-//$message = array();
-//$message['message'] = "test";
-//return $message;
+
     $this->dispatcher = $dispatcher;
     $this->mandant_id = $dispatcher->getMandantId();
 
@@ -187,27 +185,74 @@ function getGuVMonth($request) {
 function getGuVPrognose() {
     $db = getPdoConnection();
 
+// Vormonat
     $query = new QueryHandler("guv_prognose.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
+    $query->setParameterUnchecked("yearmonth", date("Ym", mktime( 0 , 0, 0, date("m")-1, date("d"), date("Y"))));
     $sql = $query->getSql();
     $stmt = $db->prepare($sql);
     $stmt->execute();
-    $result = array();
-    $result['detail'] = array();
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $result['detail'][] = $row;
+        $vormonat[$row['kontonummer']] = array( 'kontonummer'     => $row['kontonummer'],
+                                                'bezeichnung'     => $row['bezeichnung'],
+                                                'betrag_vormonat' => $row['betrag'],
+                                                'betrag_aktuell'  => 0,
+                                                'differenz'       => 0  );
+    }
+    $stmt->closeCursor();
+
+// aktueller Monat
+    $query = new QueryHandler("guv_prognose.sql");
+    $query->setParameterUnchecked("mandant_id", $this->mandant_id);
+    $query->setParameterUnchecked("yearmonth", date("Ym", mktime( 0 , 0, 0, date("m"), date("d"), date("Y"))));
+    $sql = $query->getSql();
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $aktuell[$row['kontonummer']] = array( 'kontonummer'     => $row['kontonummer'],
+                                               'bezeichnung'     => $row['bezeichnung'],
+                                               'betrag_vormonat' => 0,
+                                               'betrag_aktuell'  => $row['betrag'],
+                                               'differenz'       => 0  );
+    }
+    $stmt->closeCursor();
+
+// Zusammenführen der Vormonatsergebnissen mit dem aktuellen Monat
+    foreach($vormonat as $vormonat_row) {
+      if(isset($aktuell[$vormonat_row['kontonummer']])) {
+        $betrag = $aktuell[$vormonat_row['kontonummer']]['betrag_aktuell'];
+      } else {
+          $betrag = 0;
+        }
+      $result['detail'][$vormonat_row['kontonummer']] = array( 'kontonummer'     => $vormonat_row['kontonummer'],
+                                                               'bezeichnung'     => $vormonat_row['bezeichnung'],
+                                                               'betrag_vormonat' => $vormonat_row['betrag_vormonat'],
+                                                               'betrag_aktuell'  => $betrag,
+                                                               'differenz'       => floatval($betrag) - floatval($vormonat_row['betrag_vormonat']) );
     }
 
-    $stmt->closeCursor();
+    foreach($aktuell as $aktuell_row) {
+      if(isset($vormonat[$aktuell_row['kontonummer']])) {
+        $betrag = $vormonat[$aktuell_row['kontonummer']]['betrag_vormonat'];
+      } else {
+          $betrag = 0;
+        }
+      $result['detail'][$aktuell_row['kontonummer']] = array( 'kontonummer'     => $aktuell_row['kontonummer'],
+                                                              'bezeichnung'     => $aktuell_row['bezeichnung'],
+                                                              'betrag_vormonat' => $betrag,
+                                                              'betrag_aktuell'  => $aktuell_row['betrag_aktuell'],
+                                                              'differenz'       => floatval($betrag) - floatval($vormonat_row['betrag_vormonat']) );
+    }
 
     $query = new QueryHandler("guv_prognose_summen.sql");
     $query->setParameterUnchecked("mandant_id", $this->mandant_id);
+    $query->setParameterUnchecked("yearmonth", date("Ym"));
     $sql = $query->getSql();
     $stmt = $db->prepare($sql);
     $stmt->execute();
     $result['summen'] = array();
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $result['summen'][] = $row;
+        $result['summen'][$row['kontenart_id']] = $row;
     }
     $stmt->closeCursor();
     return wrap_response($result);
