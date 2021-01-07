@@ -220,28 +220,41 @@ function getGuVPrognose() {
 // Zusammenführen der Vormonatsergebnissen mit dem aktuellen Monat
     foreach($vormonat as $vormonat_row) {
       if(isset($aktuell[$vormonat_row['kontonummer']])) {
-        $betrag = $aktuell[$vormonat_row['kontonummer']]['betrag_aktuell'];
+        $betrag_aktuell = $aktuell[$vormonat_row['kontonummer']]['betrag_aktuell'];
       } else {
-          $betrag = 0;
+          $betrag_aktuell = 0;
         }
+
+      $betrag_aktuell_conv = $this->strToCurrency($betrag_aktuell);
+      list($betrag_aktuell_symbol, $betrag_aktuell_value) = $betrag_aktuell_conv;
+      $betrag_vormonat_conv = $this->strToCurrency($vormonat_row['betrag_vormonat']);
+      list($betrag_vormonat_symbol, $betrag_vormonat_value) = $betrag_vormonat_conv; 
       $result['detail'][$vormonat_row['kontonummer']] = array( 'kontonummer'     => $vormonat_row['kontonummer'],
                                                                'bezeichnung'     => $vormonat_row['bezeichnung'],
                                                                'betrag_vormonat' => $vormonat_row['betrag_vormonat'],
-                                                               'betrag_aktuell'  => $betrag,
-                                                               'differenz'       => floatval($betrag) - floatval($vormonat_row['betrag_vormonat']) );
+                                                               'betrag_aktuell'  => $betrag_aktuell,
+                                                               'differenz'       => round( $betrag_aktuell_value - $betrag_vormonat_value, 2) );
     }
 
     foreach($aktuell as $aktuell_row) {
       if(isset($vormonat[$aktuell_row['kontonummer']])) {
-        $betrag = $vormonat[$aktuell_row['kontonummer']]['betrag_vormonat'];
+        $betrag_vormonat = $vormonat[$aktuell_row['kontonummer']]['betrag_vormonat'];
       } else {
-          $betrag = 0;
+          $betrag_vormonat = 0;
         }
+ $betrag_vormonat_value = 7;
+ $betrag_aktuell_value  = 3;
+
+      $betrag_vormonat_conv = $this->strToCurrency($betrag_vormonat);
+      list($betrag_vormonat_symbol, $betrag_vormonat_value) = $betrag_vormonat_conv;
+      $betrag_aktuell_conv = $this->strToCurrency($aktuell_row['betrag_aktuell']);
+      list($betrag_aktuell_symbol, $betrag_aktuell_value) = $betrag_aktuell_conv;
+
       $result['detail'][$aktuell_row['kontonummer']] = array( 'kontonummer'     => $aktuell_row['kontonummer'],
                                                               'bezeichnung'     => $aktuell_row['bezeichnung'],
-                                                              'betrag_vormonat' => $betrag,
+                                                              'betrag_vormonat' => $betrag_vormonat,
                                                               'betrag_aktuell'  => $aktuell_row['betrag_aktuell'],
-                                                              'differenz'       => floatval($betrag) - floatval($vormonat_row['betrag_vormonat']) );
+                                                              'differenz'       => round( $betrag_aktuell_value - $betrag_vormonat_value, 2) );
     }
 
     $query = new QueryHandler("guv_prognose_summen.sql");
@@ -370,6 +383,58 @@ function isValidYear($year) {
     } 
     return false;
 }
+
+# Auslesen Währung aus String
+function strToCurrency($str, $validCurrencies=null) {
+    if ($validCurrencies === null) {
+        return $this->strToCurrency($str,
+               array(
+                        'EUR' => array('€', 'eur', 'euro'),
+                        'USD' => array('$', 'usd', 'dollar', 'us-dollar', 'us dollar'),
+                        'JPY' => array('¥', 'jpy', 'yen'),
+                        'CHF' => array('chf')
+                    )
+            );
+    }
+         
+        $currs = array();
+        foreach ($validCurrencies as $symbol => $alternatives) {
+            foreach ($alternatives as $a) {
+                $currs[$a] = $symbol;
+            }
+        }
+         
+        $str = mb_strtolower(trim($str));
+        $resultFloat = null;
+        $resultSymbol = null;
+         
+        foreach ($currs as $curr=>$symbol) {
+            $len = strlen($curr);
+            if (substr($str, 0, $len) === $curr) {
+                $resultSymbol = $symbol;
+                $resultFloat = substr($str, $len);
+                break;
+            } else if (substr($str, -$len, $len) === $curr) {
+                $resultSymbol = $symbol;
+                $resultFloat = substr($str, 0, -$len);
+                break;
+            }
+        }
+         
+        if ($resultSymbol === null) {
+            return false;
+        } else {
+            return array($resultSymbol, $this->strToFloat($resultFloat));
+        }
+}
+     
+#Umwandlung String zu Zahl
+function strToFloat($str) {
+    $pos = strrpos($str = strtr(trim(strval($str)), ',', '.'), '.');
+    return ($pos===false ? floatval($str) : floatval(str_replace('.', '', substr($str, 0, $pos)) . substr($str, $pos)));
+}
+
+
 }
 
 ?>
