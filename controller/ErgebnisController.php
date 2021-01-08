@@ -265,7 +265,8 @@ function getGuVPrognose() {
     $stmt->execute();
     $result['summen'] = array();
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $result['summen'][$row['kontenart_id']] = $row;
+//        $result['summen'][$row['kontenart_id']] = $row;
+$result['summen'][] = $row;
     }
     $stmt->closeCursor();
     return wrap_response($result);

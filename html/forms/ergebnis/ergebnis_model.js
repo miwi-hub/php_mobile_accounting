@@ -38,7 +38,7 @@ hhb.model.types.ErgebnisRechnungEintrag = function(data) {
     }
 };
 
-// Eintrag f�r die GuV-Prognose-Rechnung
+// Eintrag für die GuV-Prognose-Rechnung
 hhb.model.types.PrognoseRechnungEintrag = function(data) {
     var self = this;
 
@@ -253,7 +253,7 @@ hhb.model.types.ErgebnisModel = function() {
                     else if (line.kontenart_id === 5) bezeichnung = hhb.i18n.general.saldo;
 
                     var item = new hhb.model.types.ErgebnisRechnungSumme();
-                    item.label(bezeichnung);                   
+                    item.label(bezeichnung);
                     item.betrag(line.saldo);
 
                     self.summen.push(item);
@@ -296,11 +296,11 @@ hhb.model.types.ErgebnisModel = function() {
                     var line = data.summen[key];
 
                     // Übersetzung von Aufwand, Ertrag und Gewinn/Verlust einbauen
-                    if (line.kontenart_id === '1') line.bezeichnung = hhb.i18n.general.aktiva;
-                    else if (line.kontenart_id === '2') line.bezeichnung = hhb.i18n.general.passiva;
-                    else if (line.kontenart_id === '3') line.bezeichnung = hhb.i18n.general.aufwand;
-                    else if (line.kontenart_id === '4') line.bezeichnung = hhb.i18n.general.ertrag;
-                    else if (line.kontenart_id === '5') line.bezeichnung = hhb.i18n.general.saldo;
+                    if (line.kontenart_id === 1) line.bezeichnung = hhb.i18n.general.aktiva;
+                    else if (line.kontenart_id === 2) line.bezeichnung = hhb.i18n.general.passiva;
+                    else if (line.kontenart_id === 3) line.bezeichnung = hhb.i18n.general.aufwand;
+                    else if (line.kontenart_id === 4) line.bezeichnung = hhb.i18n.general.ertrag;
+                    else if (line.kontenart_id === 5) line.bezeichnung = hhb.i18n.general.saldo;
 
                     var item = new hhb.model.types.PrognoseRechnungSumme(line);
                     self.prognose_summen.push(item);
