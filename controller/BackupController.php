@@ -34,7 +34,7 @@ function invoke($action, $request, $dispatcher) {
             throw new ErrorException("Unbekannte Action");
     }
 }
-
+/*
 # Erstellt ein Datenbankbackup (Insert-Statements) von 
 # den Buchungen und Konten des aktuell angemeldeten Mandanten
 function getMysqlBackup($request) {
@@ -44,8 +44,8 @@ function getMysqlBackup($request) {
 
     $result = gzencode($backup_sql);
     return wrap_response($result, "gz");
-}
-
+} */
+/*
 # Insert-Statements für alle Buchungen des Mandanten generieren
 private function getBuchungenBackup($db) {
     $sql = "select mandant_id, buchungsnummer, buchungstext, sollkonto, habenkonto, ";
@@ -69,8 +69,8 @@ private function getBuchungenBackup($db) {
     }
     $rs->closeCursor();
     return $result;
-}
-
+} */
+/*
 # Insert-Statements für alle Konten des Mandanten generieren
 private function getKontenBackup($db) {
     $sql = "select mandant_id, kontonummer, bezeichnung, kontenart_id ";
@@ -90,7 +90,7 @@ private function getKontenBackup($db) {
     }
     $rs->closeCursor();
     return $result;
-}
+} */
 
 
 private function db_backup( ) {
@@ -99,7 +99,7 @@ private function db_backup( ) {
 //leave empty to do all
 $tables = array();
 $DBH = getPDOConnection( );
-backup_tables($DBH, $tables);	
+$this->backup_tables($DBH, $tables);	
 }
 
 private function backup_tables($DBH, $tables) {
@@ -125,13 +125,15 @@ $numtypes=array('tinyint','smallint','mediumint','int','bigint','float','double'
 
 //get all of the tables
 if(empty($tables)) {
-$pstm1 = $DBH->query('SHOW TABLES');
+$pstm1 = $DBH->prepare('SHOW TABLES');
+$pstm1->execute();
 while ($row = $pstm1->fetch(PDO::FETCH_NUM)) {
 $tables[] = $row[0];
 }
 } else {
 $tables = is_array($tables) ? $tables : explode(',',$tables);
 }
+$pstm1->closeCursor();
 
 //cycle through the table(s)
 
@@ -146,23 +148,25 @@ $return="";
 
 
 //table structure
-$pstm2 = $DBH->query("SHOW CREATE TABLE $table");
+$pstm2 = $DBH->prepare("SHOW CREATE TABLE $table");
+$pstm2->execute();
 $row2 = $pstm2->fetch(PDO::FETCH_NUM);
 $ifnotexists = str_replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS', $row2[1]);
 $return.= "\n\n".$ifnotexists.";\n\n";
-
+$pstm2->closeCursor();
 
 if ($compression) {
 gzwrite($zp, $return);
 } else {
 fwrite($handle,$return);
-}
+} //if
 $return = "";
 
 //insert values
 if ($num_rows){
 $return= 'INSERT INTO `'."$table"."` (";
-$pstm3 = $DBH->query("SHOW COLUMNS FROM $table");
+$pstm3 = $DBH->prepare("SHOW COLUMNS FROM $table");
+$pstm3->execute();
 $count = 0;
 $type = array();
 
@@ -175,18 +179,18 @@ $return.= "`".$rows[0]."`";
 $count++;
 if ($count < ($pstm3->rowCount())) {
 $return.= ", ";
-}
-}
-
+} //if
+} //else
 $return.= ")".' VALUES';
 
+$pstm3->closeCursor();
 if ($compression) {
 gzwrite($zp, $return);
 } else {
 fwrite($handle,$return);
 }
 $return = "";
-}
+} //while
 $count =0;
 while($row = $result->fetch(PDO::FETCH_NUM)) {
 $return= "\n\t(";
@@ -206,8 +210,8 @@ $return.= 'NULL';
 }
 if ($j<($num_fields-1)) {
 $return.= ',';
-}
-}
+} //if
+} //else
 $count++;
 if ($count < ($result->rowCount())) {
 $return.= "),";
@@ -243,7 +247,11 @@ echo $error3[2];
 if ($compression) {
 gzclose($zp);
 } else {
-fclose($handle);
+fclose($handle); 
+} //if compression
 }
-}
+} //function
+
+?>
+
 
