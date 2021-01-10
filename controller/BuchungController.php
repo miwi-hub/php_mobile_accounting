@@ -195,11 +195,27 @@ function getListByKonto($request) {
         $stmt->closeCursor();
         $result['list'] = $result_list;
 
+        // Kontenart bestimmen
+
+        $sql = "select kontenart_id "
+            .  "  from fi_konto "
+            . " where mandant_id  = $this->mandant_id "
+            . "   and kontonummer = '$kontonummer'"; 
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $kontenart_id = $stmt->fetchAll();
+        $stmt->closeCursor();
+
         // Saldo laden: 
-        $sql =  "select sum(betrag) as saldo from (SELECT sum(betrag) as betrag from fi_buchungen ";
-        $sql .= "where mandant_id = $this->mandant_id and sollkonto = '$kontonummer' ";
-        $sql .= "union SELECT sum(betrag)*-1 as betrag from fi_buchungen ";
-        $sql .= "where mandant_id = $this->mandant_id and habenkonto = '$kontonummer' ) as a ";
+	if($kontenart_id[0]['kontenart_id'] === 3 || $kontenart_id[0]['kontenart_id'] === 4 ) {
+          $cond = " and year = $jahr ";
+        } else {
+            $cond = "";
+          }
+
+        $sql =  "select sum(saldo) as saldo from fi_ergebnisrechnungen ";
+        $sql .= "where mandant_id = $this->mandant_id and konto = '$kontonummer' ";
+        $sql .= $cond;
         $stmt = $db->prepare($sql);
         $stmt->execute();
         while ($obj = $stmt->fetch(PDO::FETCH_ASSOC)) {
