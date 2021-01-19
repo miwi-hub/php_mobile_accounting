@@ -37,6 +37,8 @@ function invoke($action, $request, $dispatcher) {
             return $this->getListByKonto($request);
         case "listoffeneposten":
             return $this->getOpList();
+        case "op_summe":
+            return $this->getOpSumme();
         case "closeop":
             return $this->closeOpAndGetList($request);
         default:
@@ -119,6 +121,25 @@ $row['betrag'] = filter_var($row['betrag'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER
     $stmt->closeCursor();
     return wrap_response($op);
 }
+
+
+# liest die Summe der offenen Posten aus
+function getOpSumme() {
+    $db = getPdoConnection();
+    $sql = "select summe "
+         ."from fi_op_summe "
+         ."where mandant_id = $this->mandant_id";
+    $stmt = $db->prepare($sql);
+    $stmt->execute();
+    $result = array();
+    while ($sum = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      $result[] = $sum;
+    }
+    $sum = $stmt->fetchAll();
+    $stmt->closeCursor();
+    return wrap_response($result);
+}
+
 
 # liest die offenen Posten aus
 function closeOpAndGetList($request) {

@@ -4,8 +4,14 @@
         <h1 data-bind="text:i18n.buchen.offene_posten"></h1>
     </div><!-- /header -->
     <div data-role="content">
-        <h4 data-bind="text:i18n.buchen.offene_posten"></h4>
-        <table data-bind="foreach: buchen().buchungen" style="width:100%">
+        <table>
+         <tr>
+          <td><b data-bind="text:i18n.buchen.offene_posten">/<b></td>
+          <td data-bind="text:buchen().OP_Liste().Summe"></td>
+         </tr>
+        </table>
+        <br />
+        <table data-bind="foreach: buchen().buchungen " style="width:100%">
             <tr>
                 <td data-bind="text:buchungsnummer"></td>
                 <td data-bind="text:buchungstext" colspan="3"></td>

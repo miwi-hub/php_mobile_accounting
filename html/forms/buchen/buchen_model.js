@@ -24,6 +24,19 @@ hhb.model = hhb.model || {};
 hhb.model.types = hhb.model.types || {};
 
 /*
+* Datenmodell Offene Posten Liste
+*/
+hhb.model.types.OP_Liste = function(config) {
+  var self = this;
+
+  self.Summe         = ko.observable("");
+
+  if(!!config) {
+    self.Summe(config.Summe);
+  }
+}
+
+/*
 * Datenmodell eines Buchungseintrags
 */
 hhb.model.types.Buchung = function(config) {
@@ -106,6 +119,7 @@ hhb.model.types.BuchungenModel = function() {
   self.selectedBuchung = ko.observable(new hhb.model.types.Buchung());
   self.buchungen = ko.observableArray([]);
   self.selectedOffenerPosten = ko.observable(new hhb.model.types.Buchung());
+  self.OP_Liste = ko.observable(new hhb.model.types.OP_Liste());
 
   // Event-Handler für den Klick auf den Verbuchen-Button
   self.verbuchen = function() {
@@ -149,6 +163,15 @@ hhb.model.types.BuchungenModel = function() {
   // Offene Posten liste laden
   self.getOffenePosten = function() {
     self.buchungen.removeAll();
+    doGETwithCache("buchung", "op_summe", [], 
+      function(data) { 
+        self.OP_Liste().Summe(data[0].summe); 
+      },
+      function(error) {
+        util.showErrorMessage(error, hhb.i18n.buchen.error_on_load);
+      }
+    );
+
     doGETwithCache("buchung", "listoffeneposten", [],
       function(data) {
         for(var i = 0; i < data.length; i++) {
