@@ -29,7 +29,7 @@ hhb.model.types = hhb.model.types || {};
 hhb.model.types.OP_Liste = function(config) {
   var self = this;
 
-  self.Summe         = ko.observable("");
+  self.Summe         = ko.observable(0.00);
 
   if(!!config) {
     self.Summe(config.Summe);
@@ -163,9 +163,9 @@ hhb.model.types.BuchungenModel = function() {
   // Offene Posten liste laden
   self.getOffenePosten = function() {
     self.buchungen.removeAll();
-    doGETwithCache("buchung", "op_summe", [], 
+    doGET("buchung", "op_summe", [], 
       function(data) { 
-        self.OP_Liste().Summe(data[0].summe); 
+        self.OP_Liste().Summe(data[0].summe);
       },
       function(error) {
         util.showErrorMessage(error, hhb.i18n.buchen.error_on_load);
@@ -195,6 +195,14 @@ hhb.model.types.BuchungenModel = function() {
         for(var i = 0; i < data.length; i++) {
            self.buchungen.push(new hhb.model.types.Buchung(data[i]));
         }
+      doGET("buchung", "op_summe", [], 
+        function(data) { 
+          self.OP_Liste().Summe(data[0].summe);
+        },
+        function(error) {
+          util.showErrorMessage(error, hhb.i18n.buchen.error_on_load);
+        }
+      );
         jQuery.mobile.changePage("#offene_posten");
        },
        function(error) {
